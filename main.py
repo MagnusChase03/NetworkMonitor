@@ -1,6 +1,7 @@
 import time
 import threading
 from tkinter import *
+from tkinter import scrolledtext
 import tkinter
 import pyshark
 import psutil
@@ -11,6 +12,7 @@ class Application:
 
         self.downloadBandwidth = 0
         self.uploadBandwidth = 0
+        self.latestPacket = "None"
 
         self.window = tkinter.Tk()
         self.window.geometry("720x480")
@@ -25,8 +27,12 @@ class Application:
         self.canvas.create_text(500, 50, text="Upload", fill="black", font=('Monospace 15 bold'))
         self.uploadBandwidthLable = self.canvas.create_text(500, 100, text=self.uploadBandwidth, fill="black", font=('Monospace 15 bold'))
 
+        self.canvas.create_text(350, 250, text="Latest Packet", fill="black", font=('Monospace 15 bold'))
+        self.latestPacketLable = self.canvas.create_text(350, 350, text=self.latestPacket, fill="black", font=('Monospace 10 bold'))
+
     # Gets network packets
-    def getNetworkPackets(self):
+    def updateNetworkPackets(self):
+
         capture = pyshark.LiveCapture(interface="wlp0s20f3")
 
         for packet in capture.sniff_continuously():
@@ -38,7 +44,10 @@ class Application:
                 sourcePort = packet[protocol].srcport
                 dstPort = packet[protocol].dstport
 
-                print("Protocol: %s / Source: %s:%s / Destination: %s:%s" % (protocol, sourceIP, sourcePort, dstIP, dstPort))
+                self.latestPacket = "Protocol: %s / Source: %s:%s / Destination: %s:%s" % (protocol, sourceIP, sourcePort, dstIP, dstPort)
+                self.canvas.itemconfigure(self.latestPacketLable, text=self.latestPacket)
+
+                time.sleep(1)
 
             except AttributeError:
                 pass
@@ -59,6 +68,7 @@ class Application:
         while True:
             self.updateDownloadBandwidth()
             self.updateUploadBandwidth()
+            self.updateNetworkPackets()
             time.sleep(1)
 
     # Runs the application
