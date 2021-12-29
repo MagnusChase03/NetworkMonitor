@@ -1,59 +1,78 @@
 import time
 import threading
+from tkinter import *
+import tkinter
 import pyshark
 import psutil
 
-# Gets network packets
-def getNetworkPackets():
-    capture = pyshark.LiveCapture(interface="wlp0s20f3")
+class Application:
+    # Create GUI
+    def __init__(self):
 
-    for packet in capture.sniff_continuously():
-        try:
+        self.downloadBandwidth = 0
+        self.uploadBandwidth = 0
 
-            protocol = packet.transport_layer
-            sourceIP = packet.ip.src
-            dstIP = packet.ip.dst
-            sourcePort = packet[protocol].srcport
-            dstPort = packet[protocol].dstport
+        self.window = tkinter.Tk()
+        self.window.geometry("720x480")
+        self.window.title("Bandwidth Monitor");
+        self.window.resizable(False, False)
 
-            print("Protocol: %s / Source: %s:%s / Destination: %s:%s" % (protocol, sourceIP, sourcePort, dstIP, dstPort))
+        self.canvas = Canvas(self.window, width=720, height=480, bg="White")
 
-        except AttributeError:
-            pass
-        
+        self.canvas.create_text(200, 50, text="Download", fill="black", font=('Monospace 15 bold'))
+        self.downloadBandwidthLable = self.canvas.create_text(200, 100, text=self.downloadBandwidth, fill="black", font=('Monospace 15 bold'))
 
-# Returns download bandwith in megabytes
-def getDownloadBandwidth():
-    return psutil.net_io_counters().bytes_recv / 1024 / 1024
+        self.canvas.create_text(500, 50, text="Upload", fill="black", font=('Monospace 15 bold'))
+        self.uploadBandwidthLable = self.canvas.create_text(500, 100, text=self.uploadBandwidth, fill="black", font=('Monospace 15 bold'))
 
-# Returns upload bandwith in megabytes
-def getUploadBandwidth():
-    return psutil.net_io_counters().bytes_sent / 1024 / 1024
+    # Gets network packets
+    def getNetworkPackets(self):
+        capture = pyshark.LiveCapture(interface="wlp0s20f3")
 
-# Displays bandwidth
-def displayBandwidth():
-    downlodBandwidth = 0
-    uploadBandwidth = 0
+        for packet in capture.sniff_continuously():
+            try:
 
-    while True:
+                protocol = packet.transport_layer
+                sourceIP = packet.ip.src
+                dstIP = packet.ip.dst
+                sourcePort = packet[protocol].srcport
+                dstPort = packet[protocol].dstport
 
-        newDownlodBandwidth = getDownloadBandwidth()
-        newUploadBandwidth = getUploadBandwidth()
+                print("Protocol: %s / Source: %s:%s / Destination: %s:%s" % (protocol, sourceIP, sourcePort, dstIP, dstPort))
 
-        if not downlodBandwidth == newDownlodBandwidth and not uploadBandwidth == newUploadBandwidth:
+            except AttributeError:
+                pass
+            
 
-            downlodBandwidth = newUploadBandwidth
-            uploadBandwidth = newUploadBandwidth
+    # Updates download bandwith in megabytes
+    def updateDownloadBandwidth(self):
+        self.downloadBandwidth = psutil.net_io_counters().bytes_recv / 1024 / 1024
+        self.canvas.itemconfigure(self.downloadBandwidthLable, text="%.2fMB" % self.downloadBandwidth)
 
-            print("> Download: %.2fMB / Upload: %.2fMB / Total: %.2fMB" % (downlodBandwidth, uploadBandwidth, downlodBandwidth + uploadBandwidth))
+    # Updates upload bandwith in megabytes
+    def updateUploadBandwidth(self):
+        self.uploadBandwidth = psutil.net_io_counters().bytes_sent / 1024 / 1024
+        self.canvas.itemconfigure(self.uploadBandwidthLable, text="%.2fMB" % self.uploadBandwidth)
 
-        time.sleep(1)
+    # Update function
+    def update(self):
+        while True:
+            self.updateDownloadBandwidth()
+            self.updateUploadBandwidth()
+            time.sleep(1)
+
+    # Runs the application
+    def run(self):
+
+        updateThread = threading.Thread(target=self.update)
+        updateThread.start()
+
+        self.canvas.pack()
+        self.window.mainloop()
+
 
 def main():
-    bandwidthThread = threading.Thread(target=displayBandwidth)
-    packetThread = threading.Thread(target=getNetworkPackets)
-
-    bandwidthThread.start()
-    packetThread.start()
+    app = Application()
+    app.run()
 
 main()
